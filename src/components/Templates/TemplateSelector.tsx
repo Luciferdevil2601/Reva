@@ -1,0 +1,5 @@
+﻿"use client";
+import { useResumeStore } from "@/store/useResumeStore";
+import type { TemplateId } from "@/types";
+const templates:{id:TemplateId;name:string;mark:string}[]=[{id:'modern',name:'Modern',mark:'M'},{id:'classic',name:'Classic',mark:'C'},{id:'minimal',name:'Minimal',mark:'Mi'},{id:'executive',name:'Executive',mark:'E'},{id:'creative',name:'Creative',mark:'Cr'}];
+export function TemplateSelector(){const {selectedTemplate,setTemplate}=useResumeStore();return <div><b>Template</b><div className="templates">{templates.map(t=><button key={t.id} className={`templateCard ${selectedTemplate===t.id?'active':''}`} onClick={()=>setTemplate(t.id)}><div className="mini"><b>{t.mark}</b><div style={{height:5,background:t.id==='executive'?'#1e3a5f':t.id==='classic'?'#111':t.id==='creative'?'#0f766e':'#2563eb',marginTop:10}}/><div style={{height:4,background:'#ddd',marginTop:8}}/><div style={{height:4,background:'#ddd',marginTop:5,width:'70%'}}/></div><small>{t.name}</small></button>)}</div></div>}
