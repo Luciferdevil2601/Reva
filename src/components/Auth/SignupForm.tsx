@@ -1,6 +1,21 @@
-﻿"use client";
+"use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
-export function SignupForm(){const router=useRouter();const [name,setName]=useState("");const [email,setEmail]=useState("");const [password,setPassword]=useState("");const [confirm,setConfirm]=useState("");const [loading,setLoading]=useState(false);const [error,setError]=useState("");async function submit(e:React.FormEvent){e.preventDefault();setError("");if(password!==confirm){setError('Passwords do not match');return;}setLoading(true);const r=await fetch('/api/auth/signup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,email,password})});const data=await r.json();setLoading(false);if(!r.ok){setError(data.error?.message||data.message||'Signup failed');return;}router.push(data.user?.isOwner?'/owner':'/dashboard');router.refresh();}return <form className="authCard" onSubmit={submit}><h1>Signup</h1><div className="field"><label>Full name</label><input value={name} onChange={e=>setName(e.target.value)} required/></div><div className="field"><label>Email</label><input type="email" value={email} onChange={e=>setEmail(e.target.value)} required/></div><div className="field"><label>Password</label><input type="password" value={password} onChange={e=>setPassword(e.target.value)} minLength={6} required/></div><div className="field"><label>Confirm password</label><input type="password" value={confirm} onChange={e=>setConfirm(e.target.value)} minLength={6} required/></div>{error&&<p className="errorText">{error}</p>}<button className="btn" disabled={loading}>{loading?'Creating...':'Create Account'}</button><p><Link href="/login">Already have an account?</Link></p></form>}
+export function SignupForm(){
+  const router=useRouter();const [name,setName]=useState("");const [email,setEmail]=useState("");const [password,setPassword]=useState("");const [confirm,setConfirm]=useState("");const [loading,setLoading]=useState(false);const [error,setError]=useState("");
+  async function submit(e:React.FormEvent){
+    e.preventDefault();setError("");
+    if(password!==confirm){setError("Passwords do not match");return;}
+    setLoading(true);
+    try{
+      const r=await fetch("/api/auth/signup",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name,email,password})});
+      const raw=await r.text();const data=raw?JSON.parse(raw):{};
+      if(!r.ok){setError(data.error?.message||data.message||"Signup failed");return;}
+      router.push(data.user?.isOwner?"/owner":"/dashboard");router.refresh();
+    }catch{setError("Signup failed. Please retry.");}
+    finally{setLoading(false);}
+  }
+  return <form className="authCard" onSubmit={submit}><h1>Signup</h1><div className="field"><label>Full name</label><input value={name} onChange={e=>setName(e.target.value)} required/></div><div className="field"><label>Email</label><input type="email" value={email} onChange={e=>setEmail(e.target.value)} required/></div><div className="field"><label>Password</label><input type="password" value={password} onChange={e=>setPassword(e.target.value)} minLength={6} required/></div><div className="field"><label>Confirm password</label><input type="password" value={confirm} onChange={e=>setConfirm(e.target.value)} minLength={6} required/></div>{error&&<p className="errorText">{error}</p>}<button className="btn" disabled={loading}>{loading?"Creating...":"Create Account"}</button><p><Link href="/login">Already have an account?</Link></p></form>;
+}

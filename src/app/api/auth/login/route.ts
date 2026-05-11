@@ -1,11 +1,15 @@
-﻿import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getSupabaseAnon } from "@/lib/supabase";
 import { isOwner } from "@/lib/entitlements";
 import { makeSession, setSession } from "@/lib/session";
+
 const Body=z.object({email:z.string().email(),password:z.string().min(1)});
+
 export async function POST(req:Request){
-  const body=Body.parse(await req.json());
+  const parsed=Body.safeParse(await req.json().catch(()=>null));
+  if(!parsed.success) return NextResponse.json({message:"Invalid login details"},{status:400});
+  const body=parsed.data;
   const supabase=getSupabaseAnon();
   if(!supabase){const user=makeSession(body.email);setSession(user);return NextResponse.json({ok:true,preview:true,user,message:"Preview login active. Add Supabase keys for production auth."});}
   const {data,error}=await supabase.auth.signInWithPassword({email:body.email,password:body.password});

@@ -65,7 +65,9 @@ function normalizeResume(raw: Partial<OptimizeResult>, fallback: OptimizeResult)
 }
 
 export async function POST(req: Request) {
-  const body = Body.parse(await req.json());
+  const parsed = Body.safeParse(await req.json().catch(() => null));
+  if (!parsed.success) return NextResponse.json({ message: "Invalid optimization request" }, { status: 400 });
+  const body = parsed.data;
   const fallback = fallbackResume(body.resume_text, body.jd_text);
   const jdKeywords = extractKeywords(body.jd_text);
   const raw = await callAI<OptimizeResult>(

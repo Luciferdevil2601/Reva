@@ -49,7 +49,8 @@ async function postJson<T>(url: string, body: unknown): Promise<T> {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
-  const data = await response.json();
+  const raw = await response.text();
+  const data = raw ? JSON.parse(raw) : {};
   if (!response.ok) throw new Error(data.message || data.error?.message || "Request failed");
   return data as T;
 }
@@ -172,7 +173,11 @@ export const useResumeStore = create<State>()(persist((set, get) => ({
           template: get().selectedTemplate,
         }),
       });
-      if (!response.ok) throw new Error("PDF download failed");
+      if (!response.ok) {
+        const raw = await response.text();
+        const data = raw ? JSON.parse(raw) : {};
+        throw new Error(data.message || "PDF download failed");
+      }
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");

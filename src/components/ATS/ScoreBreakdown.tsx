@@ -1,4 +1,14 @@
-﻿"use client";
+"use client";
+import type { CSSProperties } from "react";
 import { useResumeStore } from "@/store/useResumeStore";
-export function ScoreBreakdown(){const s=useResumeStore();const score=s.step==='optimized'?s.atsScoreAfter:s.atsScoreBefore;const color=score<60?'var(--red)':score<80?'var(--gold)':score<95?'var(--blue)':'var(--green)';const rows=s.breakdown?Object.entries(s.breakdown):[];return <aside className="atsPanel panel"><h2>ATS Panel</h2><div className="scoreRing" style={{'--score':score||0,'--blue':color} as any}><div className="scoreInner"><div><b style={{fontSize:34}}>{score||0}</b><br/><small>ATS Score</small></div></div></div>{s.step==='optimized'&&<p><b>Before:</b> {s.atsScoreBefore} {"->"} <b>After:</b> {s.atsScoreAfter}</p>}<h3>Keywords Added</h3><div className="tags">{(s.keywordsAdded.length?s.keywordsAdded:s.keywordsFound).map(k=><span className="tag green" key={k}>{k}</span>)}</div><h3>Still Missing</h3><div className="tags">{s.keywordsMissing.map(k=><button className="tag red" key={k} title={`Add ${k} only if true`}>{k}</button>)}</div><h3>Weak Sections</h3>{(s.weakSections.length?s.weakSections:["No major weak sections detected"]).map(t=><p key={t}>- {t}</p>)}<h3>Formatting Issues</h3>{(s.formattingIssues.length?s.formattingIssues:["No critical formatting issues detected"]).map(t=><p key={t}>- {t}</p>)}<h3>Breakdown</h3>{rows.map(([k,v])=><div className="breakRow" key={k}><span>{k.replaceAll('_',' ')}</span><b>{v as number}</b></div>)}<h3>Improvement Tips</h3>{s.tips.slice(0,5).map(t=><p key={t}>- {t}</p>)}</aside>}
 
+type ScoreStyle=CSSProperties&{"--score":number;"--blue":string};
+
+export function ScoreBreakdown(){
+  const s=useResumeStore();
+  const score=s.step==="optimized"?s.atsScoreAfter:s.atsScoreBefore;
+  const color=score<60?"var(--red)":score<80?"var(--gold)":score<95?"var(--blue)":"var(--green)";
+  const rows=s.breakdown?Object.entries(s.breakdown):[];
+  const style:ScoreStyle={"--score":score||0,"--blue":color};
+  return <aside className="atsPanel panel"><h2>ATS Panel</h2><div className="scoreRing" style={style}><div className="scoreInner"><div><b style={{fontSize:34}}>{score||0}</b><br/><small>ATS Score</small></div></div></div>{s.step==="optimized"&&<p><b>Before:</b> {s.atsScoreBefore} {"->"} <b>After:</b> {s.atsScoreAfter}</p>}<h3>Keywords Added</h3><div className="tags">{(s.keywordsAdded.length?s.keywordsAdded:s.keywordsFound).map(k=><span className="tag green" key={k}>{k}</span>)}</div><h3>Still Missing</h3><div className="tags">{s.keywordsMissing.map(k=><button className="tag red" key={k} title={`Add ${k} only if true`}>{k}</button>)}</div><h3>Weak Sections</h3>{(s.weakSections.length?s.weakSections:["No major weak sections detected"]).map(t=><p key={t}>- {t}</p>)}<h3>Formatting Issues</h3>{(s.formattingIssues.length?s.formattingIssues:["No critical formatting issues detected"]).map(t=><p key={t}>- {t}</p>)}<h3>Breakdown</h3>{rows.map(([k,v])=><div className="breakRow" key={k}><span>{k.replaceAll("_"," ")}</span><b>{v}</b></div>)}<h3>Improvement Tips</h3>{s.tips.slice(0,5).map(t=><p key={t}>- {t}</p>)}</aside>;
+}
