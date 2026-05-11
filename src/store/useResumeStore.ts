@@ -1,7 +1,9 @@
 "use client";
 
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 import type { AnalysisResult, ResumeData, ScoreBreakdown, TemplateId } from "@/types";
+import { OPENROUTER_MODELS } from "@/lib/utils";
 
 type Step = "input" | "analyzed" | "optimized";
 
@@ -9,11 +11,14 @@ type State = {
   jdText: string;
   resumeText: string;
   selectedTemplate: TemplateId;
+  selectedModel: string;
   atsScoreBefore: number;
   breakdown: ScoreBreakdown | null;
   keywordsFound: string[];
   keywordsMissing: string[];
   tips: string[];
+  weakSections: string[];
+  formattingIssues: string[];
   optimizedData: ResumeData | null;
   atsScoreAfter: number;
   keywordsAdded: string[];
@@ -26,6 +31,8 @@ type State = {
   setJD: (v: string) => void;
   setResume: (v: string) => void;
   setTemplate: (v: TemplateId) => void;
+  setModel: (v: string) => void;
+  copyResume: () => Promise<void>;
   analyze: () => Promise<boolean>;
   optimize: () => Promise<void>;
   downloadPDF: () => Promise<void>;
@@ -47,15 +54,18 @@ async function postJson<T>(url: string, body: unknown): Promise<T> {
   return data as T;
 }
 
-export const useResumeStore = create<State>((set, get) => ({
+export const useResumeStore = create<State>()(persist((set, get) => ({
   jdText: sampleJD,
   resumeText: "",
   selectedTemplate: "modern",
+  selectedModel: OPENROUTER_MODELS[0],
   atsScoreBefore: 0,
   breakdown: null,
   keywordsFound: [],
   keywordsMissing: [],
   tips: [],
+  weakSections: [],
+  formattingIssues: [],
   optimizedData: null,
   atsScoreAfter: 0,
   keywordsAdded: [],
@@ -76,6 +86,7 @@ export const useResumeStore = create<State>((set, get) => ({
       step: "input",
     }),
   setTemplate: (v) => set({ selectedTemplate: v }),
+  setModel: (v) => set({ selectedModel: v }),
   reset: () =>
     set({
       jdText: "",
@@ -84,10 +95,12 @@ export const useResumeStore = create<State>((set, get) => ({
       step: "input",
       atsScoreBefore: 0,
       atsScoreAfter: 0,
-      latexSource: "",
+        latexSource: "",
+        weakSections: [],
+        formattingIssues: [],
     }),
   analyze: async () => {
-    const { jdText, resumeText } = get();
+    const { jdText, resumeText, selectedModel } = get();
     if (!jdText.trim() || !resumeText.trim()) {
       set({ error: "Paste the job description and upload your old resume first." });
       return false;
@@ -97,6 +110,7 @@ export const useResumeStore = create<State>((set, get) => ({
       const data = await postJson<AnalysisResult>("/api/analyze", {
         jd_text: jdText,
         resume_text: resumeText,
+        model: selectedModel,
       });
       set({
         atsScoreBefore: data.ats_score,
@@ -104,6 +118,8 @@ export const useResumeStore = create<State>((set, get) => ({
         keywordsFound: data.keywords_found,
         keywordsMissing: data.keywords_missing,
         tips: data.improvement_tips,
+        weakSections: data.weak_sections,
+        formattingIssues: data.formatting_issues,
         step: "analyzed",
       });
       return true;
@@ -115,7 +131,7 @@ export const useResumeStore = create<State>((set, get) => ({
     }
   },
   optimize: async () => {
-    const { jdText, resumeText } = get();
+    const { jdText, resumeText, selectedModel } = get();
     if (!jdText.trim() || !resumeText.trim()) {
       set({ error: "Paste the job description and upload your old resume first." });
       return;
@@ -131,7 +147,7 @@ export const useResumeStore = create<State>((set, get) => ({
         ats_score_after: number;
         keywords_added: string[];
         latex_source: string;
-      }>("/api/optimize", { jd_text: jdText, resume_text: resumeText });
+      }>("/api/optimize", { jd_text: jdText, resume_text: resumeText, model: selectedModel });
       set({
         optimizedData: data.resume,
         atsScoreAfter: data.ats_score_after,
@@ -184,4 +200,9 @@ export const useResumeStore = create<State>((set, get) => ({
     a.click();
     URL.revokeObjectURL(url);
   },
-}));
+  copyResume: async () => {
+    const data = get().optimizedData;
+    const text = data ? [data.contact.name, data.contact.email, data.summary, ...data.experience.flatMap((x) => x.bullets), data.skills.join(", ")].join("\n") : get().resumeText;
+    await navigator.clipboard.writeText(text);
+  },
+}),{name:"reva-resume-store",partialize:(s)=>({selectedModel:s.selectedModel,selectedTemplate:s.selectedTemplate,jdText:s.jdText})}));
