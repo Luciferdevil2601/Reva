@@ -16,7 +16,7 @@ Open http://localhost:3000.
 Copy `.env.example` to `.env.local`. OpenRouter is used for the AI model:
 
 - `OPENROUTER_API_KEY`
-- `OPENROUTER_MODEL=google/gemma-4-31b-it:free`
+- `OPENROUTER_MODEL=minimax/minimax-m2.5:free`
 
 Supabase/Razorpay keys can be added later. Owner emails have unlimited access in `src/lib/entitlements.ts`.
 
@@ -43,3 +43,5 @@ Owner dashboard shows member counts, free/pro/premium totals, active subscriptio
 ## Auth preview mode
 
 If Supabase env vars are empty, login/signup still work locally using a secure preview cookie so you can test protected pages before production keys are added.
+
+
