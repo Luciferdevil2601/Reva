@@ -30,3 +30,16 @@ Supabase/Razorpay keys can be added later. Owner emails have unlimited access in
 ## Supabase
 
 Run `supabase/schema.sql` in Supabase when enabling auth/history.
+
+## Owner dashboard
+
+Login with either owner email to open `/owner`:
+
+- `paletiganesh456@gmail.com`
+- `paletiganesh218@gmail.com`
+
+Owner dashboard shows member counts, free/pro/premium totals, active subscriptions, estimated monthly revenue, and recent users. In preview mode it uses the local session. After adding Supabase service keys, `/api/owner/stats` reads live `profiles`, `subscriptions`, and `analyses` tables.
+
+## Auth preview mode
+
+If Supabase env vars are empty, login/signup still work locally using a secure preview cookie so you can test protected pages before production keys are added.

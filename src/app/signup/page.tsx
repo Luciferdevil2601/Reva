@@ -1,2 +1,3 @@
 ﻿import Link from "next/link";
-export default function Signup(){return <><nav className="nav"><Link className="brand" href="/">Reva ATS</Link></nav><main className="authWrap"><form className="authCard"><h1>Signup</h1><div className="field"><label>Full name</label><input/></div><div className="field"><label>Email</label><input type="email"/></div><div className="field"><label>Password</label><input type="password"/></div><div className="field"><label>Confirm password</label><input type="password"/></div><button className="btn" type="button">Create Account</button><p><Link href="/login">Already have an account?</Link></p></form></main></>}
+import { SignupForm } from "@/components/Auth/SignupForm";
+export default function Signup(){return <><nav className="nav"><Link className="brand" href="/">Reva ATS</Link><Link href="/login">Login</Link></nav><main className="authWrap"><SignupForm/></main></>}
