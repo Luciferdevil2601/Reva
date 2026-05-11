@@ -153,18 +153,23 @@ export function fallbackResume(resume: string, jd: string): ResumeData & { ats_s
   const lines = resume.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
   const email = lines.find((line) => line.includes("@"))?.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0] || "you@example.com";
   const name = lines.find((line) => !line.includes("@") && !/summary|experience|skills|education/i.test(line)) || "Your Name";
+  const title = lines.find((line) => /engineer|developer|manager|analyst|designer|consultant|specialist|intern/i.test(line)) || "Relevant Experience";
+  const company = lines.find((line) => /pvt|ltd|inc|llc|solutions|technologies|systems|company/i.test(line)) || "";
   const originalBullets = lines.filter((line) => /^[-•]/.test(line)).map((line) => line.replace(/^[-•]\s*/, "")).slice(0, 4);
   const bullets = (originalBullets.length ? originalBullets : ["Delivered projects with measurable quality and stakeholder impact."]).map(
-    (bullet, index) => `${bullet.replace(/\.$/, "")} while aligning with ${keys[index % Math.max(keys.length, 1)] || "role"} requirements.`,
+    (bullet, index) => {
+      const key = keys[index % Math.max(keys.length, 1)];
+      return key && resume.toLowerCase().includes(key) ? `${bullet.replace(/\.$/, "")} with emphasis on ${key}.` : bullet;
+    },
   );
   return {
     contact: { name, email, phone: "+91 00000 00000", linkedin: "linkedin.com/in/you", location: "India" },
     summary: `ATS-tailored professional profile aligned to ${keys.slice(0, 5).join(", ")} with emphasis on verified experience from the uploaded resume.`,
-    experience: [{ title: "Relevant Role", company: "Current Company", location: "India", dates: "Recent", bullets }],
+    experience: [{ title, company, location: "India", dates: "", bullets }],
     skills: keys.length ? keys : ["Communication", "Project Delivery", "Analysis"],
     education: [{ degree: "Education", school: "University", year: "Year" }],
     certifications: [],
-    ats_score_after: 88,
+    ats_score_after: Math.min(88, 62 + keys.filter((key) => resume.toLowerCase().includes(key)).length * 3),
     keywords_added: keys,
   };
 }
