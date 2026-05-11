@@ -5,6 +5,16 @@ import { useResumeStore } from "@/store/useResumeStore";
 import { TemplateSelector } from "@/components/Templates/TemplateSelector";
 import { OPENROUTER_MODELS } from "@/lib/utils";
 
+function readMessage(raw:string){
+  if(!raw) return "";
+  try{
+    const data=JSON.parse(raw);
+    return String(data.message||data.error?.message||"");
+  }catch{
+    return raw.replace(/<[^>]*>/g," ").replace(/\s+/g," ").trim().slice(0,160);
+  }
+}
+
 export function InputPanel(){
   const s=useResumeStore();
   const fileRef=useRef<HTMLInputElement>(null);
@@ -17,8 +27,8 @@ export function InputPanel(){
     try{
       const r=await fetch("/api/parse-resume",{method:"POST",body:form});
       const raw=await r.text();
-      const data=raw?JSON.parse(raw):{};
-      if(!r.ok) throw new Error(data.message||"Could not parse resume");
+      const data=r.ok&&raw?JSON.parse(raw):{};
+      if(!r.ok) throw new Error(readMessage(raw)||"Could not parse resume");
       s.setResume(data.text);
       setResumeFile({name:data.filename,size:data.size});
     }catch(e){setUploadError(e instanceof Error?e.message:"Could not parse resume. Try DOCX or TXT if this is a scanned PDF.");}
