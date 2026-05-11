@@ -17,6 +17,7 @@ type State = {
   optimizedData: ResumeData | null;
   atsScoreAfter: number;
   keywordsAdded: string[];
+  latexSource: string;
   step: Step;
   isAnalyzing: boolean;
   isOptimizing: boolean;
@@ -28,6 +29,7 @@ type State = {
   analyze: () => Promise<boolean>;
   optimize: () => Promise<void>;
   downloadPDF: () => Promise<void>;
+  downloadLatex: () => void;
   reset: () => void;
 };
 
@@ -57,6 +59,7 @@ export const useResumeStore = create<State>((set, get) => ({
   optimizedData: null,
   atsScoreAfter: 0,
   keywordsAdded: [],
+  latexSource: "",
   step: "input",
   isAnalyzing: false,
   isOptimizing: false,
@@ -69,6 +72,7 @@ export const useResumeStore = create<State>((set, get) => ({
       optimizedData: null,
       atsScoreAfter: 0,
       keywordsAdded: [],
+      latexSource: "",
       step: "input",
     }),
   setTemplate: (v) => set({ selectedTemplate: v }),
@@ -80,6 +84,7 @@ export const useResumeStore = create<State>((set, get) => ({
       step: "input",
       atsScoreBefore: 0,
       atsScoreAfter: 0,
+      latexSource: "",
     }),
   analyze: async () => {
     const { jdText, resumeText } = get();
@@ -125,11 +130,13 @@ export const useResumeStore = create<State>((set, get) => ({
         resume: ResumeData;
         ats_score_after: number;
         keywords_added: string[];
+        latex_source: string;
       }>("/api/optimize", { jd_text: jdText, resume_text: resumeText });
       set({
         optimizedData: data.resume,
         atsScoreAfter: data.ats_score_after,
         keywordsAdded: data.keywords_added,
+        latexSource: data.latex_source,
         step: "optimized",
       });
     } catch (error) {
@@ -162,5 +169,19 @@ export const useResumeStore = create<State>((set, get) => ({
     } finally {
       set({ isDownloading: false });
     }
+  },
+  downloadLatex: () => {
+    const source = get().latexSource;
+    if (!source) {
+      set({ error: "Optimize the resume first to generate LaTeX." });
+      return;
+    }
+    const blob = new Blob([source], { type: "application/x-tex;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "tailored-resume.tex";
+    a.click();
+    URL.revokeObjectURL(url);
   },
 }));

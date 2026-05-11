@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { callAI, fallbackResume } from "@/lib/ai";
+import { resumeToLatex } from "@/lib/latex";
+import { extractKeywords } from "@/lib/utils";
 import type { ResumeData } from "@/types";
 
 const Body = z.object({
@@ -64,10 +66,32 @@ function normalizeResume(raw: Partial<OptimizeResult>, fallback: OptimizeResult)
 export async function POST(req: Request) {
   const body = Body.parse(await req.json());
   const fallback = fallbackResume(body.resume_text, body.jd_text);
+  const jdKeywords = extractKeywords(body.jd_text);
   const raw = await callAI<OptimizeResult>(
-    "You are a senior ATS resume optimization expert. Rewrite truthfully for a 95+ ATS score. Return ONLY JSON: contact, summary, experience, skills, education, certifications, ats_score_after, keywords_added.",
-    `JD: ${body.jd_text}\n\nResume: ${body.resume_text}`,
+    `You are a senior ATS resume tailoring expert.
+Goal: create a customized, ATS-safe resume for the exact job description.
+
+Process:
+1. Extract hard skills, tools, role words, seniority, responsibilities, and domain keywords from the JD.
+2. Compare those keywords with the uploaded resume.
+3. Tailor the resume by reordering, rewriting, and emphasizing only truthful information from the uploaded resume.
+4. Naturally add JD keywords only where they are supported by the candidate's resume facts.
+5. Use concise recruiter language, strong action verbs, quantified impact where the original resume supports it.
+6. Do not invent employers, degrees, certifications, dates, metrics, tools, or achievements.
+7. Keep the final resume ATS-safe and LaTeX-friendly: no tables, graphics, columns, icons, or unsupported symbols.
+
+Return ONLY JSON with:
+contact, summary, experience, skills, education, certifications, ats_score_after, keywords_added.
+Experience bullets must be tailored to the JD, not generic.`,
+    `JD KEYWORDS TO PRIORITIZE: ${jdKeywords.join(", ")}
+
+JOB DESCRIPTION:
+${body.jd_text}
+
+UPLOADED RESUME TEXT:
+${body.resume_text}`,
     fallback,
   );
-  return NextResponse.json(normalizeResume(raw, fallback));
+  const optimized = normalizeResume(raw, fallback);
+  return NextResponse.json({ ...optimized, latex_source: resumeToLatex(optimized.resume) });
 }
