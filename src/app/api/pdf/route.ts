@@ -9,51 +9,136 @@ const Body = z.object({
   template: z.enum(["modern", "classic", "minimal", "executive", "creative"]).default("modern"),
 });
 
-function esc(value: unknown) {
-  return String(value || "").replace(/[\\()]/g, "\\$&").replace(/\r?\n/g, " ");
+const PAGE_W = 595;
+const PAGE_H = 842;
+const LEFT = 48;
+const RIGHT = 48;
+const WIDTH = PAGE_W - LEFT - RIGHT;
+
+function clean(value: unknown) {
+  return String(value || "")
+    .replace(/[•○●]/g, "-")
+    .replace(/[\u2010-\u2015]/g, "-")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
-function linesForResume(data: Partial<ResumeData>) {
-  const contact = data.contact || { name: "Your Name", email: "", phone: "", linkedin: "", location: "" };
-  const lines = [
-    String(contact.name || "Your Name"),
-    [contact.email, contact.phone, contact.linkedin, contact.location].filter(Boolean).join(" | "),
-    "",
-    "PROFESSIONAL SUMMARY",
-    data.summary || "",
-    "",
-    "EXPERIENCE",
-  ];
-  for (const exp of data.experience || []) {
-    lines.push(`${exp.title || ""} - ${exp.company || ""} ${exp.dates ? `(${exp.dates})` : ""}`.trim());
-    for (const bullet of exp.bullets || []) lines.push(`- ${bullet}`);
+function esc(value: unknown) {
+  return clean(value).replace(/[\\()]/g, "\\$&");
+}
+
+function wrap(text: unknown, maxChars: number) {
+  const words = clean(text).split(" ").filter(Boolean);
+  const lines: string[] = [];
+  let line = "";
+  for (const word of words) {
+    const next = line ? `${line} ${word}` : word;
+    if (next.length > maxChars && line) {
+      lines.push(line);
+      line = word;
+    } else {
+      line = next;
+    }
   }
-  lines.push("", "SKILLS", (data.skills || []).join(", "), "", "EDUCATION");
-  for (const edu of data.education || []) lines.push(`${edu.degree || ""} - ${edu.school || ""} ${edu.year ? `(${edu.year})` : ""}`.trim());
-  if (data.certifications?.length) lines.push("", "CERTIFICATIONS", data.certifications.join(", "));
-  return lines.flatMap((line) => {
-    const text = String(line || "");
-    if (text.length <= 92) return [text];
-    const chunks: string[] = [];
-    for (let index = 0; index < text.length; index += 92) chunks.push(text.slice(index, index + 92));
-    return chunks;
-  });
+  if (line) lines.push(line);
+  return lines;
+}
+
+function textAt(x: number, y: number, text: unknown, size = 10, font = "F1") {
+  return `BT /${font} ${size} Tf ${x} ${y} Td (${esc(text)}) Tj ET`;
+}
+
+function line(x1: number, y1: number, x2: number, y2 = y1) {
+  return `${x1} ${y1} m ${x2} ${y2} l S`;
+}
+
+function section(ops: string[], y: number, title: string) {
+  ops.push(textAt(LEFT, y, title.toUpperCase(), 9, "F2"));
+  ops.push(line(LEFT, y - 5, PAGE_W - RIGHT, y - 5));
+  return y - 18;
+}
+
+function drawWrapped(ops: string[], x: number, y: number, text: unknown, maxChars: number, size = 9, leading = 12) {
+  for (const row of wrap(text, maxChars)) {
+    ops.push(textAt(x, y, row, size));
+    y -= leading;
+  }
+  return y;
+}
+
+function skillsRows(skills: string[]) {
+  const cleanSkills = skills.map(clean).filter(Boolean).slice(0, 18);
+  return [
+    ["Core", cleanSkills.slice(0, 6).join(", ")],
+    ["Technical", cleanSkills.slice(6, 12).join(", ")],
+    ["Professional", cleanSkills.slice(12, 18).join(", ")],
+  ].filter(([, value]) => value);
 }
 
 function makePdf(data: Partial<ResumeData>) {
-  const content = ["BT", "/F1 11 Tf", "50 790 Td", "14 TL"];
-  linesForResume(data).slice(0, 52).forEach((line, index) => {
-    if (index === 0) content.push("/F1 20 Tf", `(${esc(line)}) Tj`, "/F1 11 Tf", "T*");
-    else content.push(`(${esc(line)}) Tj`, "T*");
-  });
-  content.push("ET");
-  const stream = content.join("\n");
+  const contact = data.contact || { name: "Your Name", email: "", phone: "", linkedin: "", location: "" };
+  const ops = ["0.08 0.20 0.35 RG", "0.08 0.20 0.35 rg", "1 w"];
+  let y = 795;
+
+  ops.push(textAt(LEFT, y, contact.name || "Your Name", 22, "F2"));
+  y -= 17;
+  if (data.experience?.[0]?.title) {
+    ops.push(textAt(LEFT, y, data.experience[0].title, 11, "F2"));
+    y -= 14;
+  }
+  const contactLine = [contact.location, contact.phone, contact.email, contact.linkedin].filter(Boolean).join(" | ");
+  y = drawWrapped(ops, LEFT, y, contactLine, 96, 9, 11) - 6;
+
+  y = section(ops, y, "Professional Summary");
+  y = drawWrapped(ops, LEFT, y, data.summary || "", 102, 9, 12) - 6;
+
+  if (data.skills?.length) {
+    y = section(ops, y, "Core Skills");
+    for (const [label, value] of skillsRows(data.skills)) {
+      ops.push(textAt(LEFT, y, label, 9, "F2"));
+      y = drawWrapped(ops, LEFT + 96, y, value, 78, 9, 12);
+      y -= 2;
+    }
+    y -= 4;
+  }
+
+  if (data.experience?.length) {
+    y = section(ops, y, "Experience");
+    for (const exp of data.experience.slice(0, 3)) {
+      const dates = clean(exp.dates);
+      if (dates) ops.push(textAt(LEFT, y, dates, 9, "F2"));
+      ops.push(textAt(LEFT + 96, y, `${exp.title}${exp.company ? `, ${exp.company}` : ""}${exp.location ? `, ${exp.location}` : ""}`, 9, "F2"));
+      y -= 13;
+      for (const bullet of (exp.bullets || []).slice(0, 5)) {
+        ops.push(textAt(LEFT + 106, y, "-", 9, "F2"));
+        y = drawWrapped(ops, LEFT + 118, y, bullet, 76, 9, 12);
+      }
+      y -= 4;
+    }
+  }
+
+  if (data.education?.length) {
+    y = section(ops, y, "Education");
+    for (const edu of data.education.slice(0, 3)) {
+      const row = `${edu.degree}${edu.school ? `, ${edu.school}` : ""}${edu.gpa ? `, ${edu.gpa}` : ""}`;
+      ops.push(textAt(LEFT, y, edu.year || "", 9, "F2"));
+      y = drawWrapped(ops, LEFT + 96, y, row, 78, 9, 12) - 2;
+    }
+  }
+
+  if (data.certifications?.length && y > 90) {
+    y = section(ops, y, "Certifications");
+    y = drawWrapped(ops, LEFT, y, data.certifications.join(" | "), 102, 9, 12);
+  }
+
+  const stream = ops.join("\n");
   const objects = [
     "1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n",
     "2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n",
-    "3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>\nendobj\n",
+    "3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R /F2 5 0 R >> >> /Contents 6 0 R >>\nendobj\n",
     "4 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n",
-    `5 0 obj\n<< /Length ${Buffer.byteLength(stream, "latin1")} >>\nstream\n${stream}\nendstream\nendobj\n`,
+    "5 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>\nendobj\n",
+    `6 0 obj\n<< /Length ${Buffer.byteLength(stream, "latin1")} >>\nstream\n${stream}\nendstream\nendobj\n`,
   ];
   let pdf = "%PDF-1.4\n";
   const offsets = [0];

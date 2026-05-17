@@ -1,6 +1,16 @@
 import { NextResponse } from "next/server";
-import { inflateSync } from "node:zlib";
+import { execFile } from "node:child_process";
+import { randomUUID } from "node:crypto";
+import { promises as fs } from "node:fs";
+import { createRequire } from "node:module";
+import os from "node:os";
+import path from "node:path";
+import { promisify } from "node:util";
 import mammoth from "mammoth";
+
+const require = createRequire(import.meta.url);
+const { PDFParse } = require("pdf-parse") as typeof import("pdf-parse");
+const execFileAsync = promisify(execFile);
 
 export const runtime = "nodejs";
 
@@ -34,23 +44,47 @@ function extractTextFromPdfStream(stream: string) {
   return parts.join("\n");
 }
 
-function parsePdf(bytes: Buffer) {
-  const raw = bytes.toString("latin1");
-  const texts: string[] = [];
-  for (const match of raw.matchAll(/<<(.*?)>>\s*stream\r?\n?([\s\S]*?)\r?\n?endstream/gs)) {
-    const dictionary = match[1];
-    let stream = match[2];
-    if (/\/FlateDecode\b/.test(dictionary)) {
-      try {
-        stream = inflateSync(Buffer.from(stream, "latin1")).toString("latin1");
-      } catch {
-        continue;
-      }
-    }
-    const text = extractTextFromPdfStream(stream);
-    if (text) texts.push(text);
+async function parsePdf(bytes: Buffer) {
+  const parser = new PDFParse({ data: new Uint8Array(bytes) });
+  try {
+    const parsed = await parser.getText();
+    const text = parsed.text || "";
+    if (text.trim()) return text;
+  } finally {
+    await parser.destroy();
   }
-  return texts.join("\n");
+  return parsePdfInSubprocess(bytes);
+}
+
+async function parsePdfInSubprocess(bytes: Buffer) {
+  const tmp = path.join(os.tmpdir(), `reva-${randomUUID()}.pdf`);
+  await fs.writeFile(tmp, bytes);
+  const script = `
+const fs = require("fs");
+const { PDFParse } = require("pdf-parse");
+(async () => {
+  const parser = new PDFParse({ data: fs.readFileSync(process.argv[1]) });
+  try {
+    const result = await parser.getText();
+    process.stdout.write(result.text || "");
+  } finally {
+    await parser.destroy();
+  }
+})().catch((error) => {
+  console.error(error && error.message ? error.message : error);
+  process.exit(1);
+});
+`;
+  try {
+    const { stdout } = await execFileAsync(process.execPath, ["-e", script, tmp], {
+      cwd: process.cwd(),
+      maxBuffer: 10 * 1024 * 1024,
+      timeout: 30_000,
+    });
+    return stdout;
+  } finally {
+    await fs.rm(tmp, { force: true });
+  }
 }
 
 export async function POST(req: Request) {
@@ -66,7 +100,7 @@ export async function POST(req: Request) {
     const bytes = Buffer.from(await file.arrayBuffer());
     let text = "";
     if (name.endsWith(".pdf") || type === "application/pdf") {
-      text = parsePdf(bytes);
+      text = await parsePdf(bytes);
     } else if (
       name.endsWith(".docx") ||
       type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document"

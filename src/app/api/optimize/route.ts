@@ -2,13 +2,13 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { callAI, fallbackResume } from "@/lib/ai";
 import { resumeToLatex } from "@/lib/latex";
-import { OPENROUTER_MODELS, extractKeywords } from "@/lib/utils";
+import { extractKeywords } from "@/lib/utils";
 import type { ResumeData } from "@/types";
 
 const Body = z.object({
   jd_text: z.string().min(1),
   resume_text: z.string().min(1),
-  model: z.enum(OPENROUTER_MODELS).optional(),
+  model: z.string().min(1).optional(),
   user_id: z.string().optional(),
 });
 

@@ -42,6 +42,26 @@ type State = {
 
 const sampleJD =
   "We need a frontend engineer with React, TypeScript, Next.js, REST API, testing, analytics, and strong communication. AWS and Docker are preferred.";
+const sampleResume = `Ganesh Kumar
+Email: ganesh@example.com
+Phone: +91 90000 00000
+LinkedIn: linkedin.com/in/ganesh
+Location: India
+
+Summary
+Frontend Developer building React and TypeScript dashboards for business users.
+
+Experience
+Frontend Developer - Project Work | 2024-2026
+- Developed Next.js dashboard modules using REST API integrations.
+- Improved reporting speed by 35 percent with reusable components.
+- Collaborated with QA on testing and agile delivery.
+
+Skills
+React, TypeScript, JavaScript, Next.js, REST API, SQL, analytics, communication
+
+Education
+B.Pharm - University | 2024`;
 
 async function postJson<T>(url: string, body: unknown): Promise<T> {
   const response = await fetch(url, {
@@ -57,7 +77,7 @@ async function postJson<T>(url: string, body: unknown): Promise<T> {
 
 export const useResumeStore = create<State>()(persist((set, get) => ({
   jdText: sampleJD,
-  resumeText: "",
+  resumeText: sampleResume,
   selectedTemplate: "modern",
   selectedModel: OPENROUTER_MODELS[0],
   atsScoreBefore: 0,

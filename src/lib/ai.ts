@@ -57,7 +57,7 @@ export async function callAI<T>(
   if (!key) return fallback as T & { model_used?: string };
   const models = Array.from(
     new Set([preferred, process.env.OPENROUTER_MODEL, ...OPENROUTER_MODELS].filter(Boolean) as string[]),
-  ).filter((model) => (OPENROUTER_MODELS as readonly string[]).includes(model));
+  );
 
   for (const model of models) {
     for (let attempt = 0; attempt < 2; attempt += 1) {
@@ -149,27 +149,45 @@ export function fallbackAnalysis(jd: string, resume: string): AnalysisResult {
 }
 
 export function fallbackResume(resume: string, jd: string): ResumeData & { ats_score_after: number; keywords_added: string[] } {
-  const keys = extractKeywords(jd).slice(0, 12);
+  const keys = extractKeywords(jd).slice(0, 18);
+  const lowerResume = resume.toLowerCase();
+  const supportedKeys = keys
+    .filter((key) => {
+      const normalized = key.replace(/\bapis\b/g, "api").replace(/\bengineer\b/g, "developer");
+      return lowerResume.includes(key) || lowerResume.includes(normalized) || normalized.split(/\s+/).every((part) => lowerResume.includes(part));
+    })
+    .slice(0, 12);
   const lines = resume.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
   const email = lines.find((line) => line.includes("@"))?.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0] || "you@example.com";
+  const phone = resume.match(/(?:\+91[\s-]?)?[6-9]\d{4}[\s-]?\d{5}/)?.[0] || "+91 00000 00000";
+  const linkedin = resume.match(/(?:https?:\/\/)?(?:www\.)?linkedin\.com\/in\/[a-z0-9-_%]+/i)?.[0] || "linkedin.com/in/you";
   const name = lines.find((line) => !line.includes("@") && !/summary|experience|skills|education/i.test(line)) || "Your Name";
-  const title = lines.find((line) => /engineer|developer|manager|analyst|designer|consultant|specialist|intern/i.test(line)) || "Relevant Experience";
-  const company = lines.find((line) => /pvt|ltd|inc|llc|solutions|technologies|systems|company/i.test(line)) || "";
+  const experienceIndex = lines.findIndex((line) => /^experience$/i.test(line));
+  const roleLine = experienceIndex >= 0 ? lines.slice(experienceIndex + 1).find((line) => !line.startsWith("-")) : undefined;
+  const [rolePart, datePart = ""] = (roleLine || "").split("|").map((part) => part.trim());
+  const [titlePart, companyPart = ""] = rolePart.split(/\s+-\s+/).map((part) => part.trim());
+  const title = titlePart || lines.find((line) => /engineer|developer|manager|analyst|designer|consultant|specialist|intern/i.test(line)) || "Relevant Experience";
+  const company = companyPart || lines.find((line) => /pvt|ltd|inc|llc|solutions|technologies|systems|company/i.test(line)) || "Project Work";
+  const educationIndex = lines.findIndex((line) => /^education$/i.test(line));
+  const educationLine = educationIndex >= 0 ? lines[educationIndex + 1] || "" : "";
+  const [degreeSchool, educationYear = "Year"] = educationLine.split("|").map((part) => part.trim());
+  const [degree = "Education", school = "University"] = degreeSchool.split(/\s+-\s+/).map((part) => part.trim());
   const originalBullets = lines.filter((line) => /^[-•]/.test(line)).map((line) => line.replace(/^[-•]\s*/, "")).slice(0, 4);
   const bullets = (originalBullets.length ? originalBullets : ["Delivered projects with measurable quality and stakeholder impact."]).map(
     (bullet, index) => {
-      const key = keys[index % Math.max(keys.length, 1)];
-      return key && resume.toLowerCase().includes(key) ? `${bullet.replace(/\.$/, "")} with emphasis on ${key}.` : bullet;
+      const key = supportedKeys[index % Math.max(supportedKeys.length, 1)];
+      return key ? `${bullet.replace(/\.$/, "")} with emphasis on ${key}.` : bullet;
     },
   );
+  const score = Math.min(94, 72 + supportedKeys.length * 3 + Math.min(originalBullets.length, 4));
   return {
-    contact: { name, email, phone: "+91 00000 00000", linkedin: "linkedin.com/in/you", location: "India" },
-    summary: `ATS-tailored professional profile aligned to ${keys.slice(0, 5).join(", ")} with emphasis on verified experience from the uploaded resume.`,
-    experience: [{ title, company, location: "India", dates: "", bullets }],
-    skills: keys.length ? keys : ["Communication", "Project Delivery", "Analysis"],
-    education: [{ degree: "Education", school: "University", year: "Year" }],
+    contact: { name, email, phone, linkedin, location: "India" },
+    summary: `ATS-tailored professional profile aligned to ${supportedKeys.slice(0, 6).join(", ") || "the target role"} with emphasis on verified experience from the uploaded resume.`,
+    experience: [{ title, company, location: "India", dates: datePart, bullets }],
+    skills: supportedKeys.length ? supportedKeys : ["Communication", "Project Delivery", "Analysis"],
+    education: [{ degree, school, year: educationYear }],
     certifications: [],
-    ats_score_after: Math.min(88, 62 + keys.filter((key) => resume.toLowerCase().includes(key)).length * 3),
-    keywords_added: keys,
+    ats_score_after: score,
+    keywords_added: supportedKeys,
   };
 }
