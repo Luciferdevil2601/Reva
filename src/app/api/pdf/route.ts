@@ -131,6 +131,11 @@ function makePdf(data: Partial<ResumeData>) {
     y = drawWrapped(ops, LEFT, y, data.certifications.join(" | "), 102, 9, 12);
   }
 
+  if (data.projects?.length && y > 70) {
+    y = section(ops, y, "Projects & Publications");
+    y = drawWrapped(ops, LEFT, y, data.projects.join(" | "), 102, 9, 12);
+  }
+
   const stream = ops.join("\n");
   const objects = [
     "1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n",

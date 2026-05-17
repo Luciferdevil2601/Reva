@@ -32,6 +32,7 @@ function Sections({ data }: { data: ResumeData }) {
       <h2>Education</h2>
       {data.education.map((e, i) => <p key={i}><b>{e.degree}</b> - {e.school} <span style={{ float: "right" }}>{e.year}</span></p>)}
       {data.certifications?.length ? <><h2>Certifications</h2><p>{data.certifications.join(", ")}</p></> : null}
+      {data.projects?.length ? <><h2>Projects & Publications</h2><p>{data.projects.join(" | ")}</p></> : null}
     </>
   );
 }
@@ -75,6 +76,7 @@ function Canva({ data }: { data: ResumeData }) {
         </div>
       ))}
       {data.certifications?.length ? <><h2>Certifications</h2><p>{data.certifications.join(" | ")}</p></> : null}
+      {data.projects?.length ? <><h2>Projects & Publications</h2><p>{data.projects.join(" | ")}</p></> : null}
     </article>
   );
 }
@@ -102,6 +104,7 @@ function Creative({ data }: { data: ResumeData }) {
             <ul>{e.bullets.map((b, j) => <li key={j}>{b}</li>)}</ul>
           </div>
         ))}
+        {data.projects?.length ? <><h2>Projects & Publications</h2><p>{data.projects.join(" | ")}</p></> : null}
       </main>
     </article>
   );

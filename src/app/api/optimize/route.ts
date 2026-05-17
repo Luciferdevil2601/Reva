@@ -3,7 +3,7 @@ import { z } from "zod";
 import { callAI, fallbackResume } from "@/lib/ai";
 import { resumeToLatex } from "@/lib/latex";
 import { extractKeywords } from "@/lib/utils";
-import type { ResumeData } from "@/types";
+import type { Education, Experience, ResumeData } from "@/types";
 
 const Body = z.object({
   jd_text: z.string().min(1),
@@ -20,13 +20,46 @@ function asString(value: unknown, fallback = "") {
   return typeof value === "string" && value.trim() ? value.trim() : fallback;
 }
 
-function asList(value: unknown, fallback: string[] = []) {
-  return Array.isArray(value) ? value.map(String).filter(Boolean) : fallback;
+function asList(value: unknown, fallback: string[] = [], limit = 24) {
+  return Array.isArray(value) ? value.map(String).map((x) => x.trim()).filter(Boolean).slice(0, limit) : fallback;
+}
+
+function normalizeExperience(value: unknown, fallback: Experience[]) {
+  const rows = Array.isArray(value) ? value : [];
+  const normalized = rows.map((item) => {
+    const row = item as Partial<Experience>;
+    return {
+      title: asString(row.title),
+      company: asString(row.company),
+      location: asString(row.location),
+      dates: asString(row.dates),
+      bullets: asList(row.bullets, [], 6),
+    };
+  }).filter((row) => row.title && row.bullets.length >= 2 && !/project work$/i.test(row.company));
+  return normalized.length ? normalized.slice(0, 3) : fallback;
+}
+
+function normalizeEducation(value: unknown, fallback: Education[]) {
+  const rows = Array.isArray(value) ? value : [];
+  const normalized = rows.map((item) => {
+    const row = item as Partial<Education>;
+    return {
+      degree: asString(row.degree),
+      school: asString(row.school),
+      year: asString(row.year),
+      gpa: asString(row.gpa),
+    };
+  }).filter((row) => (row.degree || row.school) && row.degree.toLowerCase() !== "education" && !/summary|experience|certification|skills|thesis|project|publication/i.test(`${row.degree} ${row.school}`) && `${row.degree} ${row.school}`.length < 180);
+  return normalized.length ? normalized.slice(0, 4) : fallback;
+}
+
+function cleanSectionList(value: unknown, fallback: string[], limit: number) {
+  const blocked = /core skills|professional summary|experience|education|certifications|-- 1 of 1 --|page \d/i;
+  const rows = asList(value, [], limit).filter((item) => !blocked.test(item) && item.length < 180);
+  return rows.length ? rows : fallback.slice(0, limit);
 }
 
 function normalizeResume(raw: Partial<OptimizeResult>, fallback: OptimizeResult) {
-  const firstExperience = raw.experience?.[0] || fallback.experience[0];
-  const firstEducation = raw.education?.[0] || fallback.education[0];
   const resume: ResumeData = {
     contact: {
       name: asString(raw.contact?.name, fallback.contact.name),
@@ -36,30 +69,17 @@ function normalizeResume(raw: Partial<OptimizeResult>, fallback: OptimizeResult)
       location: asString(raw.contact?.location, fallback.contact.location),
     },
     summary: asString(raw.summary, fallback.summary),
-    experience: [
-      {
-        title: asString(firstExperience?.title, fallback.experience[0].title),
-        company: asString(firstExperience?.company, fallback.experience[0].company),
-        location: asString(firstExperience?.location, fallback.experience[0].location),
-        dates: asString(firstExperience?.dates, fallback.experience[0].dates),
-        bullets: asList(firstExperience?.bullets, fallback.experience[0].bullets).slice(0, 6),
-      },
-    ],
-    skills: asList(raw.skills, fallback.skills).slice(0, 24),
-    education: [
-      {
-        degree: asString(firstEducation?.degree, fallback.education[0].degree),
-        school: asString(firstEducation?.school, fallback.education[0].school),
-        year: asString(firstEducation?.year, fallback.education[0].year),
-        gpa: asString(firstEducation?.gpa, fallback.education[0].gpa),
-      },
-    ],
-    certifications: asList(raw.certifications, fallback.certifications || []),
+    experience: normalizeExperience(raw.experience, fallback.experience),
+    skills: asList(raw.skills, fallback.skills, 28),
+    education: normalizeEducation(raw.education, fallback.education),
+    certifications: cleanSectionList(raw.certifications, fallback.certifications || [], 8),
+    projects: cleanSectionList(raw.projects, fallback.projects || [], 6),
   };
+  const rawScore = typeof raw.ats_score_after === "number" ? raw.ats_score_after : fallback.ats_score_after;
   return {
     resume,
-    ats_score_after: Math.max(0, Math.min(100, Math.round(raw.ats_score_after || 95))),
-    keywords_added: asList(raw.keywords_added, fallback.keywords_added || []),
+    ats_score_after: Math.max(0, Math.min(100, Math.round(rawScore || 90))),
+    keywords_added: asList(raw.keywords_added, fallback.keywords_added || [], 18),
   };
 }
 
@@ -70,28 +90,27 @@ export async function POST(req: Request) {
   const fallback = fallbackResume(body.resume_text, body.jd_text);
   const jdKeywords = extractKeywords(body.jd_text);
   const raw = await callAI<OptimizeResult>(
-    `You are a senior ATS resume tailoring expert.
-Goal: create a customized, ATS-safe resume for the exact job description.
-
-Process:
-1. Extract hard skills, tools, role words, seniority, responsibilities, and domain keywords from the JD.
-2. Compare those keywords with the uploaded resume.
-3. Tailor the resume by reordering, rewriting, and emphasizing only truthful information from the uploaded resume.
-4. Naturally add JD keywords only where they are supported by the candidate's resume facts.
-5. Use concise recruiter language, strong action verbs, quantified impact where the original resume supports it.
-6. Do not invent employers, degrees, certifications, dates, metrics, tools, or achievements.
-7. Keep the final resume ATS-safe and LaTeX-friendly: no tables, graphics, columns, icons, or unsupported symbols.
-
-Return ONLY JSON with:
-contact, summary, experience, skills, education, certifications, ats_score_after, keywords_added.
-Experience bullets must be tailored to the JD, not generic.`,
-    `JD KEYWORDS TO PRIORITIZE: ${jdKeywords.join(", ")}
+    `You are a strict resume tailoring engine, not a creative writer.
+Use the fallback resume as the source-of-truth structure. Improve wording only when the uploaded resume proves the claim.
+Rules:
+1. Preserve the candidate name, contact, education, certifications, project/publication facts, companies, dates, locations, and degrees.
+2. Do not invent employers, dates, tools, metrics, certificates, publications, or experience.
+3. Use exact job-description keywords only when supported by the uploaded resume or fallback evidence.
+4. Rewrite bullets in strong recruiter language, but keep each bullet factual and specific.
+5. Output concise ATS-safe content with standard headings and no icons/tables/columns.
+6. Preserve multiple education/certification/project items instead of flattening them.
+7. Return JSON with contact, summary, experience, skills, education, certifications, projects, ats_score_after, keywords_added.`,
+    `JOB DESCRIPTION KEYWORDS:
+${jdKeywords.join(", ")}
 
 JOB DESCRIPTION:
 ${body.jd_text}
 
 UPLOADED RESUME TEXT:
-${body.resume_text}`,
+${body.resume_text}
+
+SOURCE-OF-TRUTH FALLBACK JSON:
+${JSON.stringify(fallback, null, 2)}`,
     fallback,
   );
   const optimized = normalizeResume(raw, fallback);
