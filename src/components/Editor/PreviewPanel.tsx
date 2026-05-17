@@ -5,7 +5,7 @@ import { ResumeTemplate } from "@/components/Templates/ResumeTemplate";
 import { parseResumeText } from "@/components/Templates/parser";
 import type { TemplateId } from "@/types";
 
-const templates: TemplateId[] = ["modern", "classic", "minimal", "executive", "creative"];
+const templates: TemplateId[] = ["canva", "modern", "classic", "minimal", "executive", "creative"];
 
 export function PreviewPanel(){
   const s=useResumeStore();

@@ -8,7 +8,6 @@ import type { ResumeData } from "@/types";
 const Body = z.object({
   jd_text: z.string().min(1),
   resume_text: z.string().min(1),
-  model: z.string().min(1).optional(),
   user_id: z.string().optional(),
 });
 
@@ -94,7 +93,6 @@ ${body.jd_text}
 UPLOADED RESUME TEXT:
 ${body.resume_text}`,
     fallback,
-    body.model,
   );
   const optimized = normalizeResume(raw, fallback);
   return NextResponse.json({ ...optimized, latex_source: resumeToLatex(optimized.resume) });

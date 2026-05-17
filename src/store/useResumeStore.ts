@@ -3,7 +3,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { AnalysisResult, ResumeData, ScoreBreakdown, TemplateId } from "@/types";
-import { OPENROUTER_MODELS } from "@/lib/utils";
 
 type Step = "input" | "analyzed" | "optimized";
 
@@ -11,7 +10,6 @@ type State = {
   jdText: string;
   resumeText: string;
   selectedTemplate: TemplateId;
-  selectedModel: string;
   atsScoreBefore: number;
   breakdown: ScoreBreakdown | null;
   keywordsFound: string[];
@@ -31,7 +29,6 @@ type State = {
   setJD: (v: string) => void;
   setResume: (v: string) => void;
   setTemplate: (v: TemplateId) => void;
-  setModel: (v: string) => void;
   copyResume: () => Promise<void>;
   analyze: () => Promise<boolean>;
   optimize: () => Promise<void>;
@@ -78,8 +75,7 @@ async function postJson<T>(url: string, body: unknown): Promise<T> {
 export const useResumeStore = create<State>()(persist((set, get) => ({
   jdText: sampleJD,
   resumeText: sampleResume,
-  selectedTemplate: "modern",
-  selectedModel: OPENROUTER_MODELS[0],
+  selectedTemplate: "canva",
   atsScoreBefore: 0,
   breakdown: null,
   keywordsFound: [],
@@ -107,7 +103,6 @@ export const useResumeStore = create<State>()(persist((set, get) => ({
       step: "input",
     }),
   setTemplate: (v) => set({ selectedTemplate: v }),
-  setModel: (v) => set({ selectedModel: v }),
   reset: () =>
     set({
       jdText: "",
@@ -116,12 +111,12 @@ export const useResumeStore = create<State>()(persist((set, get) => ({
       step: "input",
       atsScoreBefore: 0,
       atsScoreAfter: 0,
-        latexSource: "",
-        weakSections: [],
-        formattingIssues: [],
+      latexSource: "",
+      weakSections: [],
+      formattingIssues: [],
     }),
   analyze: async () => {
-    const { jdText, resumeText, selectedModel } = get();
+    const { jdText, resumeText } = get();
     if (!jdText.trim() || !resumeText.trim()) {
       set({ error: "Paste the job description and upload your old resume first." });
       return false;
@@ -131,7 +126,6 @@ export const useResumeStore = create<State>()(persist((set, get) => ({
       const data = await postJson<AnalysisResult>("/api/analyze", {
         jd_text: jdText,
         resume_text: resumeText,
-        model: selectedModel,
       });
       set({
         atsScoreBefore: data.ats_score,
@@ -152,7 +146,7 @@ export const useResumeStore = create<State>()(persist((set, get) => ({
     }
   },
   optimize: async () => {
-    const { jdText, resumeText, selectedModel } = get();
+    const { jdText, resumeText } = get();
     if (!jdText.trim() || !resumeText.trim()) {
       set({ error: "Paste the job description and upload your old resume first." });
       return;
@@ -168,7 +162,7 @@ export const useResumeStore = create<State>()(persist((set, get) => ({
         ats_score_after: number;
         keywords_added: string[];
         latex_source: string;
-      }>("/api/optimize", { jd_text: jdText, resume_text: resumeText, model: selectedModel });
+      }>("/api/optimize", { jd_text: jdText, resume_text: resumeText });
       set({
         optimizedData: data.resume,
         atsScoreAfter: data.ats_score_after,
@@ -188,10 +182,7 @@ export const useResumeStore = create<State>()(persist((set, get) => ({
       const response = await fetch("/api/pdf", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          resume_data: get().optimizedData,
-          template: get().selectedTemplate,
-        }),
+        body: JSON.stringify({ resume_data: get().optimizedData, template: get().selectedTemplate }),
       });
       if (!response.ok) {
         const raw = await response.text();
@@ -230,4 +221,4 @@ export const useResumeStore = create<State>()(persist((set, get) => ({
     const text = data ? [data.contact.name, data.contact.email, data.summary, ...data.experience.flatMap((x) => x.bullets), data.skills.join(", ")].join("\n") : get().resumeText;
     await navigator.clipboard.writeText(text);
   },
-}),{name:"reva-resume-store",partialize:(s)=>({selectedModel:s.selectedModel,selectedTemplate:s.selectedTemplate,jdText:s.jdText})}));
+}), { name: "reva-resume-store", partialize: (s) => ({ selectedTemplate: s.selectedTemplate, jdText: s.jdText }) }));

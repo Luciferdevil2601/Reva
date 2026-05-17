@@ -13,6 +13,6 @@ export async function POST(req:Request){
   if(!parsed.success) return NextResponse.json({message:"Invalid analysis request"},{status:400});
   const body=parsed.data;
   const fallback=fallbackAnalysis(body.jd_text,body.resume_text);
-  const raw=await callAI<AnalysisResult>("You are an expert ATS scoring engine. Simulate a recruiter ATS scan. Return ONLY JSON with ats_score, breakdown keyword_match out of 40 section_headers out of 20 file_format out of 15 quantified_items out of 15 clean_formatting out of 10, keywords_found, keywords_missing, weak_sections, formatting_issues, quick_wins, improvement_tips.",`JD: ${body.jd_text}\n\nResume: ${body.resume_text}`,fallback,body.model);
+  const raw=await callAI<AnalysisResult>("You are an expert ATS scoring engine. Simulate a recruiter ATS scan. Return ONLY JSON with ats_score, breakdown keyword_match out of 40 section_headers out of 20 file_format out of 15 quantified_items out of 15 clean_formatting out of 10, keywords_found, keywords_missing, weak_sections, formatting_issues, quick_wins, improvement_tips.",`JD: ${body.jd_text}\n\nResume: ${body.resume_text}`,fallback);
   return NextResponse.json(normalize(raw,fallback));
 }

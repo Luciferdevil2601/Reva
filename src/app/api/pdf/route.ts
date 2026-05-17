@@ -6,7 +6,7 @@ export const runtime = "nodejs";
 
 const Body = z.object({
   resume_data: z.object({}).passthrough(),
-  template: z.enum(["modern", "classic", "minimal", "executive", "creative"]).default("modern"),
+  template: z.enum(["canva", "modern", "classic", "minimal", "executive", "creative"]).default("canva"),
 });
 
 const PAGE_W = 595;
@@ -17,7 +17,7 @@ const WIDTH = PAGE_W - LEFT - RIGHT;
 
 function clean(value: unknown) {
   return String(value || "")
-    .replace(/[•○●]/g, "-")
+    .replace(/[\u2022\u25cb\u25cf]/g, "-")
     .replace(/[\u2010-\u2015]/g, "-")
     .replace(/\s+/g, " ")
     .trim();

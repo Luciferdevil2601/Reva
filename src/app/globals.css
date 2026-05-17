@@ -77,6 +77,16 @@ button:hover,.btn:hover{transform:translateY(-1px)}
 .executive{padding-top:0}
 .executive .resumeHead{background:var(--navy);color:white;margin:-44px -44px 24px;padding:36px 44px}
 .executive h2{color:var(--gold);border-color:var(--gold)}
+.canva{font-size:12px;padding:42px 48px}
+.canvaHead{text-align:left;margin-bottom:18px}
+.canvaHead h1{font-size:30px;color:#12345a}
+.canvaRole{font-size:15px;font-weight:800;color:#3c5068}
+.canva h2{color:#12345a;border-color:#12345a;margin-top:16px}
+.skillGrid{display:grid;gap:8px}
+.skillRow{display:grid;grid-template-columns:140px 1fr;gap:12px}
+.skillRow b,.timelineRow>b{color:#12345a}
+.timelineRow{display:grid;grid-template-columns:118px 1fr;gap:14px;margin:8px 0}
+.timelineRow p{margin-top:0}
 .creative{display:grid;grid-template-columns:190px 1fr;padding:0}
 .creativeSide{background:var(--navy);color:white;padding:34px 20px;min-height:1123px}
 .creativeMain{padding:40px}

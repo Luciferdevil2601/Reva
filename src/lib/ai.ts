@@ -51,13 +51,10 @@ export async function callAI<T>(
   system: string,
   user: string,
   fallback: T,
-  preferred?: string,
 ): Promise<T & { model_used?: string }> {
   const key = process.env.OPENROUTER_API_KEY;
   if (!key) return fallback as T & { model_used?: string };
-  const models = Array.from(
-    new Set([preferred, process.env.OPENROUTER_MODEL, ...OPENROUTER_MODELS].filter(Boolean) as string[]),
-  );
+  const models = OPENROUTER_MODELS;
 
   for (const model of models) {
     for (let attempt = 0; attempt < 2; attempt += 1) {
@@ -127,7 +124,7 @@ export function fallbackAnalysis(jd: string, resume: string): AnalysisResult {
   const weak = ["summary", "experience", "skills", "education"].filter((section) => !lowerResume.includes(section));
   const formatting = [];
   if (resume.length < 700) formatting.push("Resume looks too short for robust ATS matching");
-  if (/[│■◆★]/.test(resume)) formatting.push("Decorative symbols can reduce ATS parsing accuracy");
+  if (/[\u2502\u25a0\u25c6\u2605]/.test(resume)) formatting.push("Decorative symbols can reduce ATS parsing accuracy");
   const breakdown = {
     keyword_match: Math.round((found.length / Math.max(jdKeys.length, 1)) * 40),
     section_headers: weak.length ? 12 : 18,
@@ -172,7 +169,7 @@ export function fallbackResume(resume: string, jd: string): ResumeData & { ats_s
   const educationLine = educationIndex >= 0 ? lines[educationIndex + 1] || "" : "";
   const [degreeSchool, educationYear = "Year"] = educationLine.split("|").map((part) => part.trim());
   const [degree = "Education", school = "University"] = degreeSchool.split(/\s+-\s+/).map((part) => part.trim());
-  const originalBullets = lines.filter((line) => /^[-•]/.test(line)).map((line) => line.replace(/^[-•]\s*/, "")).slice(0, 4);
+  const originalBullets = lines.filter((line) => /^[-\u2022]/.test(line)).map((line) => line.replace(/^[-\u2022]\s*/, "")).slice(0, 4);
   const bullets = (originalBullets.length ? originalBullets : ["Delivered projects with measurable quality and stakeholder impact."]).map(
     (bullet, index) => {
       const key = supportedKeys[index % Math.max(supportedKeys.length, 1)];

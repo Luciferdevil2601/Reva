@@ -1,4 +1,4 @@
-﻿export type TemplateId = "modern"|"classic"|"minimal"|"executive"|"creative";
+export type TemplateId = "canva"|"modern"|"classic"|"minimal"|"executive"|"creative";
 export type ScoreBreakdown = { keyword_match:number; section_headers:number; file_format:number; quantified_items:number; clean_formatting:number };
 export type Experience = { title:string; company:string; location:string; dates:string; bullets:string[] };
 export type Education = { degree:string; school:string; year:string; gpa?:string };
